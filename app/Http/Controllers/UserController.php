@@ -46,4 +46,39 @@ class UserController extends Controller
             );
         }   
     }
+
+
+    public function confrimCode(Request $request)
+    {
+        try{
+
+            $request->validate(
+                [
+                    'mobile' => 'required|string',
+                    'code' => 'required|string'
+                ]
+            );
+
+            $jwt = $this->userService->confrimCode($request->mobile , $request->code);
+            
+            if(is_string($jwt))
+            {
+                return response()->json(
+                    [
+                        'status' => 'SUCCESS',
+                        'token' => $jwt
+                    ]
+                );
+            } 
+
+        }catch(Exception $e)
+        {
+            return response()->json(
+                [
+                    'status' => 'ERROR',
+                    'message' => $e->getMessage()
+                ] , 500
+            );
+        }   
+    }
 }

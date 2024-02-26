@@ -6,13 +6,19 @@ use App\Exceptions\TokenNotValidException;
 use App\Models\User;
 use App\Services\User\Contracts\IUserService;
 use Carbon\Carbon;
+use Exception;
+use Firebase\JWT\BeforeValidException;
+use Firebase\JWT\ExpiredException;
+use Firebase\JWT\JWT;
+use Firebase\JWT\Key;
+use Firebase\JWT\SignatureInvalidException;
 use Illuminate\Support\Facades\Redis;
 
 
 class UserService implements IUserService
 {
 
-    public function confrimCode(string $mobile , string $code) : bool
+    public function confrimCode(string $mobile , string $code) : string
     {
 
         if(!$this->getCode($mobile) == $code)
@@ -20,9 +26,68 @@ class UserService implements IUserService
             throw new ConfrimCodeNotValid("Code not valid");
         }
 
-        return true;
+        $user = User::where('mobile' , $mobile)->first();
+
+        return $this->makeNewToken($user);
         
     } 
+
+
+    public function makeNewToken(User $user) : string
+    {
+
+        $date   = new \DateTimeImmutable();
+        $expire_at     = $date->modify('+10000 minutes')->getTimestamp();   
+       
+ 
+        $payload = [
+            'id' => $user->id, 
+            'phone_number' => $user->phone_number, 
+            'exp' => $expire_at,
+            'iat' => $date->getTimestamp(),
+        ];
+
+        return  JWT::encode($payload, $this->privateKey(), 'RS256');
+
+    }
+
+    public function isValidateToken($token)
+    {
+        try {
+            if($token == null) return false;
+        
+            JWT::decode($token, new Key($this->publicKey(), 'RS256'));
+      
+         
+           return true;
+        } catch (ExpiredException $e) {
+            throw new Exception('Token expired');
+        } catch (SignatureInvalidException $e) {
+            throw new Exception('Invalid token signature');
+        } catch (BeforeValidException $e) {
+            throw new Exception('Token not valid yet');
+        } catch (Exception $e) {
+            throw new Exception('Invalid token');
+        }
+    }
+
+
+    public function privateKey()
+    {
+
+
+
+    }
+
+
+
+    public function publicKey()
+    {
+
+
+        
+    }
+    
     
     public function sendCode(string $mobile) : bool
     {
